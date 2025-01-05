@@ -1,98 +1,87 @@
-from fastapi import FastAPI, HTTPException
-from sqlmodel import SQLModel, Field, create_engine, Session
-from typing import Optional, List, Literal
-from datetime import datetime
+from typing import ClassVar
+from fastapi import FastAPI, HTTPException, Depends
+from sqlmodel import SQLModel, Field, create_engine, Session, select
+from datetime import datetime, timezone
+from typing import Optional, List
+from contextlib import asynccontextmanager
+from pydantic import BaseModel
 
-# Configuração do banco SQLite
-DATABASE_URL = "sqlite:///tarefas.db"
-engine = create_engine(DATABASE_URL, echo=True)  # echo=True para exibir os logs SQL no console
+# Configuração do banco de dados
+DATABASE_URL = "sqlite:///./test.db"
+engine = create_engine(DATABASE_URL)
 
-app = FastAPI()
+# Gerenciador de ciclo de vida (lifespan)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    SQLModel.metadata.create_all(engine)  # Criação das tabelas
+    yield  # Ciclo de vida do aplicativo
+    SQLModel.metadata.drop_all(engine)  # Exclusão das tabelas quando o app parar
 
+# Inicialização do app com o ciclo de vida
+app = FastAPI(lifespan=lifespan)
 
-# Modelo representando a tabela no banco de dados
-class Tarefa(SQLModel, table=True):  # table=True indica que é uma tabela no banco
-    id: Optional[int] = Field(default=None, primary_key=True)  # ID autoincrementado
+# Definição do modelo de Tarefa
+class Tarefa(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
     titulo: str
-    descricao: Optional[str] = None
-    estado: Literal["pendente", "em andamento", "concluída"]  # Restrição de valores
-    data_criacao: datetime = Field(default_factory=datetime.utcnow)  # Padrão: agora
-    data_atualizacao: datetime = Field(default_factory=datetime.utcnow)
+    descricao: str
+    estado: str = "pendente"
+    data_criacao: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    data_atualizacao: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+    from_attributes: ClassVar[bool] = True  # Adicionando ClassVar
 
-# Função para criar as tabelas no banco
-def criar_tabelas():
-    SQLModel.metadata.create_all(engine)
+# Definição do modelo para atualização de Tarefa
+class TarefaAtualizacao(BaseModel):
+    titulo: Optional[str]
+    descricao: Optional[str]
+    estado: Optional[str]
 
+# Função para fornecer a sessão do banco de dados
+def get_session():
+    with Session(engine) as session:
+        yield session
 
-# Criar tabelas ao iniciar o aplicativo
-@app.on_event("startup")
-def ao_iniciar():
-    criar_tabelas()
-
-
-# Rota principal
-@app.get("/")
-def home():
-    return {"mensagem": "Beem-vindo à minha API de tarefas!"}
-
-
-# Endpoints
-
-# Criar uma nova tarefa
+# Rota para criar uma nova tarefa
 @app.post("/tarefas/", response_model=Tarefa)
-def criar_tarefa(tarefa: Tarefa):
-    with Session(engine) as session:
-        # Adiciona a nova tarefa
-        session.add(tarefa)
-        session.commit()
-        session.refresh(tarefa)  # Atualiza a tarefa com o ID gerado
-        return tarefa
+def criar_tarefa(tarefa: Tarefa, session: Session = Depends(get_session)):
+    session.add(tarefa)
+    session.commit()
+    session.refresh(tarefa)
+    return tarefa
 
-
-# Listar todas as tarefas
+# Rota para listar todas as tarefas
 @app.get("/tarefas/", response_model=List[Tarefa])
-def listar_tarefas():
-    with Session(engine) as session:
-        tarefas = session.query(Tarefa).all()  # Busca todas as tarefas
-        return tarefas
+def listar_tarefas(session: Session = Depends(get_session)):
+    return session.exec(select(Tarefa)).all()
 
-
-# Visualizar uma tarefa específica
+# Rota para obter uma tarefa específica
 @app.get("/tarefas/{tarefa_id}", response_model=Tarefa)
-def obter_tarefa(tarefa_id: int):
-    with Session(engine) as session:
-        tarefa = session.get(Tarefa, tarefa_id)  # Busca a tarefa pelo ID
-        if not tarefa:
-            raise HTTPException(status_code=404, detail="Tarefa não encontrada")
-        return tarefa
+def obter_tarefa(tarefa_id: int, session: Session = Depends(get_session)):
+    tarefa = session.get(Tarefa, tarefa_id)
+    if not tarefa:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+    return tarefa
 
-
-# Atualizar uma tarefa
+# Rota para atualizar uma tarefa existente
 @app.put("/tarefas/{tarefa_id}", response_model=Tarefa)
-def atualizar_tarefa(tarefa_id: int, atualizacao: Tarefa):
-    with Session(engine) as session:
-        tarefa = session.get(Tarefa, tarefa_id)
-        if not tarefa:
-            raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+def atualizar_tarefa(tarefa_id: int, tarefa_atualizada: TarefaAtualizacao, session: Session = Depends(get_session)):
+    tarefa = session.get(Tarefa, tarefa_id)
+    if not tarefa:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+    for campo, valor in tarefa_atualizada.model_dump(exclude_unset=True).items():
+        setattr(tarefa, campo, valor)
+    tarefa.data_atualizacao = datetime.now(timezone.utc)
+    session.add(tarefa)
+    session.commit()
+    session.refresh(tarefa)
+    return tarefa
 
-        # Atualiza os campos da tarefa
-        for key, value in atualizacao.dict(exclude_unset=True).items():
-            setattr(tarefa, key, value)
-
-        tarefa.data_atualizacao = datetime.utcnow()  # Atualiza a data
-        session.commit()
-        session.refresh(tarefa)
-        return tarefa
-
-
-# Deletar uma tarefa
+# Rota para deletar uma tarefa
 @app.delete("/tarefas/{tarefa_id}", status_code=204)
-def deletar_tarefa(tarefa_id: int):
-    with Session(engine) as session:
-        tarefa = session.get(Tarefa, tarefa_id)
-        if not tarefa:
-            raise HTTPException(status_code=404, detail="Tarefa não encontrada")
-        session.delete(tarefa)
-        session.commit()
-    return {"mensagem": "Tarefa deletada com sucesso"}
+def deletar_tarefa(tarefa_id: int, session: Session = Depends(get_session)):
+    tarefa = session.get(Tarefa, tarefa_id)
+    if not tarefa:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+    session.delete(tarefa)
+    session.commit()

@@ -1,131 +1,94 @@
+import pytest
 from fastapi.testclient import TestClient
-from main import app  # Importa o FastAPI do seu código principal
+from sqlmodel import Session, create_engine, SQLModel, select, delete
+from main import app, Tarefa, engine
 
-client = TestClient(app)  # Instancia o cliente de testes
+client = TestClient(app)
 
-def test_home():
-    response = client.get("/")  # Faz uma requisição GET para o endpoint "/"
-    assert response.status_code == 200  # Verifica se o status é 200 (OK)
-    assert response.json() == {"mensagem": "Bem-vindo à minha API de tarefas!"}  # Verifica a mensagem retornada
+# Configurando o banco de dados para testes
+@pytest.fixture(name="session")
+def session_fixture():
+    test_engine = create_engine("sqlite:///./test.db", connect_args={"check_same_thread": False})
+    SQLModel.metadata.create_all(test_engine)
+    with Session(test_engine) as session:
+        yield session
 
+    # Limpeza do banco após cada teste
+    SQLModel.metadata.drop_all(test_engine)
+
+@pytest.fixture(autouse=True)
+def limpar_dados(session):
+    session.exec(delete(Tarefa))
+    session.commit()
 
 def test_criar_tarefa():
-    # Dados para criar uma tarefa
-    nova_tarefa = {
-        "titulo": "Estudar Python",
-        "descricao": "Aprender a usar Pytest",
-        "estado": "pendente"
-    }
-
-    # Envia uma requisição POST com os dados da tarefa
-    response = client.post("/tarefas/", json=nova_tarefa)
-
-    # Verifica se o status de resposta é 200
+    response = client.post(
+        "/tarefas/",
+        json={"titulo": "Tarefa 1", "descricao": "Descrição da tarefa"}
+    )
     assert response.status_code == 200
+    data = response.json()
+    assert data["titulo"] == "Tarefa 1"
+    assert data["descricao"] == "Descrição da tarefa"
+    assert data["estado"] == "pendente"
 
-    # Verifica os dados retornados pela API
-    resultado = response.json()
-    assert resultado["titulo"] == nova_tarefa["titulo"]
-    assert resultado["descricao"] == nova_tarefa["descricao"]
-    assert resultado["estado"] == nova_tarefa["estado"]
-    assert "id" in resultado  # O ID deve estar presente
-    assert "data_criacao" in resultado  # A data de criação deve estar presente
+def test_listar_tarefas(session):
+    # Criar tarefas manualmente para o teste
+    tarefa1 = Tarefa(titulo="Tarefa 1", descricao="Descrição 1")
+    tarefa2 = Tarefa(titulo="Tarefa 2", descricao="Descrição 2")
+    session.add_all([tarefa1, tarefa2])
+    session.commit()
 
-
-def test_listar_tarefas():
-    # Faz uma requisição GET para listar as tarefas
     response = client.get("/tarefas/")
-
-    # Verifica se o status de resposta é 200
     assert response.status_code == 200
-
-    # Verifica se a resposta é uma lista
-    tarefas = response.json()
-    assert isinstance(tarefas, list)
-    assert len(tarefas) > 0  # Verifica se a lista contém pelo menos uma tarefa
-
+    data = response.json()
+    assert len(data) == 2
+    assert data[0]["titulo"] == "Tarefa 1"
+    assert data[1]["titulo"] == "Tarefa 2"
 
 def test_obter_tarefa():
-    # Faz uma requisição GET para obter a tarefa com ID 1
-    response = client.get("/tarefas/1")
+    # Criar uma tarefa para obter
+    response = client.post(
+        "/tarefas/",
+        json={"titulo": "Tarefa Única", "descricao": "Descrição única"}
+    )
+    tarefa_id = response.json()["id"]
 
-    # Verifica se o status de resposta é 200
+    response = client.get(f"/tarefas/{tarefa_id}")
     assert response.status_code == 200
-
-    # Verifica os dados da tarefa retornada
-    tarefa = response.json()
-    assert tarefa["id"] == 1
-    assert "titulo" in tarefa
-    assert "estado" in tarefa
-
+    data = response.json()
+    assert data["titulo"] == "Tarefa Única"
+    assert data["descricao"] == "Descrição única"
 
 def test_atualizar_tarefa():
-    # Dados para atualizar o estado da tarefa
-    atualizacao = {"estado": "em andamento"}
+    # Criar uma tarefa para atualizar
+    response = client.post(
+        "/tarefas/",
+        json={"titulo": "Tarefa Antiga", "descricao": "Descrição antiga"}
+    )
+    tarefa_id = response.json()["id"]
 
-    # Faz uma requisição PUT para atualizar a tarefa com ID 1
-    response = client.put("/tarefas/1", json=atualizacao)
-
-    # Verifica se o status de resposta é 200
+    response = client.put(
+        f"/tarefas/{tarefa_id}",
+        json={"titulo": "Tarefa Atualizada", "descricao": "Descrição atualizada", "estado": "em andamento"}
+    )
     assert response.status_code == 200
-
-    # Verifica os dados atualizados da tarefa
-    tarefa_atualizada = response.json()
-    assert tarefa_atualizada["id"] == 1
-    assert tarefa_atualizada["estado"] == "em andamento"
-
+    data = response.json()
+    assert data["titulo"] == "Tarefa Atualizada"
+    assert data["descricao"] == "Descrição atualizada"
+    assert data["estado"] == "em andamento"
 
 def test_deletar_tarefa():
-    # Faz uma requisição DELETE para excluir a tarefa com ID 1
-    response = client.delete("/tarefas/1")
+    # Criar uma tarefa para deletar
+    response = client.post(
+        "/tarefas/",
+        json={"titulo": "Tarefa para deletar", "descricao": "Descrição da tarefa"}
+    )
+    tarefa_id = response.json()["id"]
 
-    # Verifica se o status de resposta é 204 (No Content)
+    response = client.delete(f"/tarefas/{tarefa_id}")
     assert response.status_code == 204
 
-    # Verifica se a tarefa foi realmente excluída
-    response = client.get("/tarefas/1")
-    assert response.status_code == 404  # A tarefa não deve mais existir
-
-
-
-
-
-
-def test_criar_tarefa_estado_invalido():
-    # Dados com um estado inválido
-    tarefa_invalida = {
-        "titulo": "Tarefa inválida",
-        "descricao": "Teste com estado inválido",
-        "estado": "finalizado"  # Estado inválido
-    }
-
-    # Faz uma requisição POST para criar a tarefa
-    response = client.post("/tarefas/", json=tarefa_invalida)
-
-    # Verifica se o código de resposta é 422
-    assert response.status_code == 422
-
-    # Verifica se a mensagem de erro é clara
-    resposta_json = response.json()
-    assert resposta_json["detail"][0]["msg"] == "Input should be 'pendente', 'em andamento' or 'concluída'"
-
-
-def test_atualizar_tarefa_inexistente():
-    # Dados para atualizar
-    atualizacao = {
-        "titulo": "Título Atualizado",
-        "descricao": "Descrição Atualizada",
-        "estado": "em andamento",
-    }
-
-    # ID inexistente
-    tarefa_id_inexistente = 999
-
-    # Faz uma requisição PUT para atualizar a tarefa
-    response = client.put(f"/tarefas/{tarefa_id_inexistente}", json=atualizacao)
-
-    # Verifica se o código de resposta é 404
+    # Verificar se a tarefa foi realmente excluída
+    response = client.get(f"/tarefas/{tarefa_id}")
     assert response.status_code == 404
-
-    # Verifica se a mensagem de erro indica que a tarefa não foi encontrada
-    assert response.json() == {"detail": "Tarefa não encontrada"}

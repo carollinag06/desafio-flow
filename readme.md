@@ -44,7 +44,6 @@ Olá esse projeto é de uma api de gerenciamento de tarefa
 
 ## **Contribuição**
 
-Sinta-se à vontade para contribuir com melhorias. Faça um fork do projeto, crie uma branch, implemente suas alterações e envie um Pull Request!
 
 ## **Licença**
 
