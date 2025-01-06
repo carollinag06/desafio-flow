@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+sqlmodel
+pydantic
+python-jose
+pytest
+pytest-asyncio
+httpx
+python-dotenv

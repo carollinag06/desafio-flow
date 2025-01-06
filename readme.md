@@ -1,50 +1,111 @@
-Olá esse projeto é de uma api de gerenciamento de tarefa
+API de Gerenciamento de Tarefas (To-Do List) com FastAPI
 
-1. Inicie o servidor FastAPI:
+Este projeto é uma API RESTful para gerenciamento de tarefas (To-Do List) desenvolvida utilizando o framework FastAPI. A aplicação suporta as operações CRUD (Criar, Ler, Atualizar e Excluir tarefas) e utiliza JWT (JSON Web Token) para autenticação e segurança.
 
-   ```bash
-   uvicorn main:app --reload
-   ```
+Funcionalidades
 
-2. Acesse a documentação interativa da API:
+Criar novas tarefas.
 
-   - Swagger UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-   - Redoc: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+Listar todas as tarefas.
 
-3. A API estará rodando localmente em: [http://127.0.0.1:8000](http://127.0.0.1:8000).
+Visualizar detalhes de uma tarefa específica.
 
-## **Testes**
+Atualizar uma tarefa existente.
 
-1. Instale o Pytest:
+Excluir tarefas.
 
-   ```bash
-   pip install pytest
-   ```
+Autenticação segura com JWT.
 
-2. Execute os testes:
+Tecnologias Utilizadas
 
-   ```bash
-   pytest
-   ```
+FastAPI: Framework moderno para APIs web.
 
-## **Estrutura do Projeto**
+Uvicorn: Servidor ASGI para executar a aplicação.
 
-```
-<RAIZ_DO_PROJETO>/
-├── main.py          # Código principal da aplicação
-├── requirements.txt # Dependências do projeto
-├── README.md        # Instruções do projeto
-└── tests/           # Diretório contendo testes (opcional)
-```
+SQLModel: ORM para interação com o banco de dados SQLite.
 
-## **Dependências**
+Pydantic: Para validação e manipulação de dados.
 
-- **FastAPI**: Framework para criação de APIs.
-- **Uvicorn**: Servidor ASGI para rodar o FastAPI.
+JWT (JSON Web Token): Para autenticação.
 
-## **Contribuição**
+Pytest: Framework para testes automatizados.
 
+SQLite: Banco de dados relacional embutido.
 
-## **Licença**
+Requisitos
 
-Este projeto está licenciado sob a Licença MIT. Consulte o arquivo `LICENSE` para mais detalhes.
+Python 3.8+
+
+pip (gerenciador de pacotes do Python)
+
+Instalação
+
+Clone o repositório:
+
+git clone https://github.com/seu-usuario/desafio-flow.git
+cd desafio-flow
+
+Configure o ambiente virtual (opcional, mas recomendado):
+
+Windows:
+
+python -m venv venv
+venv\Scripts\activate
+
+Linux/MacOS:
+
+python3 -m venv venv
+source venv/bin/activate
+
+Instale as dependências:
+
+pip install -r requirements.txt
+
+Inicie o servidor:
+
+uvicorn app.main:app --reload
+
+A aplicação estará disponível em http://127.0.0.1:8000.
+
+Endpoints Principais
+
+POST /login: Gera um token JWT ao autenticar o usuário.
+
+POST /tasks/: Cria uma nova tarefa.
+
+GET /tasks/: Lista todas as tarefas do usuário autenticado.
+
+GET /tasks/{task_id}: Retorna os detalhes de uma tarefa específica.
+
+PUT /tasks/{task_id}: Atualiza uma tarefa existente.
+
+DELETE /tasks/{task_id}: Exclui uma tarefa.
+
+Documentação da API
+
+Swagger UI: http://127.0.0.1:8000/docs
+
+Redoc: http://127.0.0.1:8000/redoc
+
+Estrutura do Projeto
+
+├── app/
+│   ├── main.py        # Arquivo principal da aplicação
+│   ├── auth.py        # Gerenciamento de autenticação com JWT
+│   ├── models.py      # Modelos de dados e esquemas
+│   ├── crud.py        # Operações no banco de dados
+│   ├── database.py    # Configuração do banco de dados
+├── test_main.py       # Testes automatizados com Pytest
+├── requirements.txt   # Dependências do projeto
+├── .env               # Configurações de ambiente
+├── README.md          # Documentação do projeto
+
+Testes
+
+Para rodar os testes:
+
+pytest
+
+Licença
+
+Este projeto está licenciado sob a MIT License.
