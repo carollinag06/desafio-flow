@@ -81,8 +81,6 @@
 │   ├── main.py         # **Arquivo principal da aplicação**
 │   ├── auth.py         # **Gerenciamento de autenticação com JWT**
 │   ├── models.py       # **Modelos de dados e esquemas**
-│   ├── crud.py         # **Operações no banco de dados**
-│   ├── database.py     # **Configuração do banco de dados**
 ├── test_main.py        # **Testes automatizados com Pytest**
 ├── requirements.txt    # **Dependências do projeto**
 ├── .env                # **Configurações de ambiente**
