@@ -77,14 +77,21 @@
 ## **Estrutura do Projeto**
 
 ```plaintext
+├── .idea/              # Diretório de configuração de projeto do IDE (possivelmente PyCharm).
+├── __pycache__/        # Diretório de cache gerado pelo Python (arquivos compilados).
 ├── app/
 │   ├── main.py         # **Arquivo principal da aplicação**
 │   ├── auth.py         # **Gerenciamento de autenticação com JWT**
-│   ├── models.py       # **Modelos de dados e esquemas**
-├── test_main.py        # **Testes automatizados com Pytest**
-├── requirements.txt    # **Dependências do projeto**
-├── .env                # **Configurações de ambiente**
-├── README.md           # **Documentação do projeto**
+│   ├── models.py       # **Modelos de dados e esquemas**               # Diretório principal contendo o código-fonte da aplicação.
+├── venv/               # Ambiente virtual Python com bibliotecas instaladas.
+├── .gitattributes      # Configuração para controle de versões (Git).
+├── LICENSE             # Arquivo de licença do projeto.
+├── readme.md           # Documentação do projeto, atualizada recentemente.
+├── requirements.txt    # Dependências necessárias para rodar o projeto.
+├── tarefas.db          # Banco de dados SQLite utilizado pela aplicação.
+├── test.db             # Banco de dados de teste para desenvolvimento.
+├── test_main.py        # Arquivo contendo testes automatizados.
+
 ```
 
 ## **Testes**
